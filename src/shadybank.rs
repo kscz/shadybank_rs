@@ -4,6 +4,7 @@ use reqwest::blocking::Client as ReqwestClient;
 
 pub struct Client {
     reqwest_client: ReqwestClient,
+    host_url: String,
     b_token: Option<String>
 }
 
@@ -11,8 +12,7 @@ pub struct Client {
 pub enum Error {
     NotLoggedIn,
     RequestFailure,
-    ReqwestError(reqwest::Error),
-    Unknown
+    ReqwestError(reqwest::Error)
 }
 
 impl From<reqwest::Error> for Error {
@@ -21,23 +21,32 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-pub enum TrackData {
-    MagStripe(String),
+#[derive(Debug)]
+pub enum MagData {
+    Stripe(String),
     Track1(String),
-    Track2(String)
+    Track2(String),
+    PanOtp((String, String)),
+    PanShotp((String, String))
 }
 
 impl Client {
-    pub fn new() -> Client {
+    pub fn new(host_url: Option<String>) -> Client {
+        let url = if let Some(url) = host_url {
+            url
+        } else {
+            String::from("https://bucks.shady.tel")
+        };
         Client {
             reqwest_client: reqwest::blocking::Client::new(),
+            host_url: url,
             b_token: None
         }
     }
 
     pub fn login(&mut self,  account_id: &str, password: &str) -> Result<(), Error> {
-        let params = [("account_id", account_id.clone()), ("password", password.clone()), ("type", "password")];
-        let resp = self.reqwest_client.post("https://bucks.shady.tel/api/login")
+        let params = [("account_id", account_id), ("password", password), ("type", "password"), ("otp", "")];
+        let resp = self.reqwest_client.post(self.host_url.clone() + "/api/login")
             .form(&params)
             .send()?;
 
@@ -56,7 +65,7 @@ impl Client {
 
         let resp = match &self.b_token {
             None => return Err(Error::NotLoggedIn),
-            Some(token) => self.reqwest_client.post("https://bucks.shady.tel/api/capture")
+            Some(token) => self.reqwest_client.post(self.host_url.clone() + "/api/capture")
                 .bearer_auth(token.clone())
                 .form(&params)
                 .send()?
@@ -71,12 +80,28 @@ impl Client {
         }
     }
 
-    pub fn authorize(&self, magstripe: &str, amount: i32) -> Result<String, Error> {
-        let params = [("magstripe", magstripe.clone()), ("amount", &amount.to_string())];
+    pub fn authorize(&self, card: &MagData, amount: i32) -> Result<String, Error> {
+        let mut params = Vec::new();
+        match card {
+            MagData::Stripe(magstripe) => { params.push(("magstripe", magstripe.clone())); },
+            MagData::Track1(track) => { params.push(("track1", track.clone())); },
+            MagData::Track2(track) => { params.push(("track2", track.clone())); },
+            MagData::PanOtp((pan, otp)) => {
+                params.push(("pan", pan.clone()));
+                params.push(("otp", otp.clone()));
+            },
+            MagData::PanShotp((pan, shotp)) => {
+                params.push(("pan", pan.clone()));
+                params.push(("shotp", shotp.clone()));
+            }
+        }
+        params.push(("amount", amount.to_string()));
+
+        println!("{:?}", params);
 
         let resp = match &self.b_token {
             None => return Err(Error::NotLoggedIn),
-            Some(token) => self.reqwest_client.post("https://bucks.shady.tel/api/authorize")
+            Some(token) => self.reqwest_client.post(self.host_url.clone() + "/api/authorize")
                 .bearer_auth(token.clone())
                 .form(&params)
                 .send()?
@@ -91,11 +116,26 @@ impl Client {
         }
     }
 
-    pub fn credit(&self, magstripe: &str, amount: i32) -> Result<(), Error> {
-        let params = [("magstripe", magstripe.clone()), ("amount", &amount.to_string())];
+    pub fn credit(&self, card: &MagData, amount: i32) -> Result<(), Error> {
+        let mut params = Vec::new();
+        match card {
+            MagData::Stripe(magstripe) => { params.push(("magstripe", magstripe.clone())); },
+            MagData::Track1(track) => { params.push(("track1", track.clone())); },
+            MagData::Track2(track) => { params.push(("track2", track.clone())); },
+            MagData::PanOtp((pan, otp)) => {
+                params.push(("pan", pan.clone()));
+                params.push(("otp", otp.clone()));
+            },
+            MagData::PanShotp((pan, shotp)) => {
+                params.push(("pan", pan.clone()));
+                params.push(("shotp", shotp.clone()));
+            }
+        }
+        params.push(("amount", amount.to_string()));
+
         let resp = match &self.b_token {
             None => return Err(Error::NotLoggedIn),
-            Some(token) => self.reqwest_client.post("https://bucks.shady.tel/api/credit")
+            Some(token) => self.reqwest_client.post(self.host_url.clone() + "/api/credit")
             .bearer_auth(token.clone())
             .form(&params)
             .send()?
@@ -118,7 +158,7 @@ impl Client {
         let params = [("auth_code", auth_code.to_string())];
         let resp = match &self.b_token {
             None => return Err(Error::NotLoggedIn),
-            Some(token) => self.reqwest_client.post("https://bucks.shady.tel/api/void")
+            Some(token) => self.reqwest_client.post(self.host_url.clone() + "/api/void")
                 .bearer_auth(token.clone())
                 .form(&params)
                 .send()?
@@ -136,17 +176,18 @@ impl Client {
     pub fn logout(&mut self) -> Result<(), Error> {
         let resp = match &self.b_token {
             None => return Err(Error::NotLoggedIn),
-            Some(token) => self.reqwest_client.post("https://bucks.shady.tel/api/logout")
+            Some(token) => self.reqwest_client.post(self.host_url.clone() + "/api/logout")
                 .bearer_auth(token.clone())
                 .send()?
         };
+
+        self.b_token = None;
 
         if !resp.status().is_success() {
             println!("Logout request not successful: {:?}", resp);
             println!("{:?}", resp.text()?);
             Err(Error::RequestFailure)
         } else {
-            self.b_token = None;
             Ok(())
         }
     }

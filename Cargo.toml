@@ -1,5 +1,5 @@
 [package]
-name = "mm_shadybucks"
+name = "shadybank_rs"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,4 +10,4 @@ crate-type=["staticlib"]
 
 [dependencies]
 libc = "0.2"
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
