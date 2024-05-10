@@ -60,7 +60,7 @@ impl Client {
         }
     }
 
-    pub fn capture(&self, amount: i32, auth_code: &str) -> Result<(), Error> {
+    pub fn capture(&self, amount: f64, auth_code: &str) -> Result<(), Error> {
         let params = [("amount", amount.to_string()), ("auth_code", auth_code.to_string())];
 
         let resp = match &self.b_token {
@@ -80,7 +80,7 @@ impl Client {
         }
     }
 
-    pub fn authorize(&self, card: &MagData, amount: i32) -> Result<String, Error> {
+    pub fn authorize(&self, card: &MagData, amount: f64) -> Result<String, Error> {
         let mut params = Vec::new();
         match card {
             MagData::Stripe(magstripe) => { params.push(("magstripe", magstripe.clone())); },
@@ -116,7 +116,7 @@ impl Client {
         }
     }
 
-    pub fn credit(&self, card: &MagData, amount: i32) -> Result<(), Error> {
+    pub fn credit(&self, card: &MagData, amount: f64) -> Result<(), Error> {
         let mut params = Vec::new();
         match card {
             MagData::Stripe(magstripe) => { params.push(("magstripe", magstripe.clone())); },

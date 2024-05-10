@@ -59,7 +59,7 @@ pub unsafe extern "C" fn shadybank_logout(client_handle: Option<&mut shadybank::
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shadybank_credit(client_handle: Option<&mut shadybank::Client>, magstripe: *const c_char, amount: i32) -> i32 {
+pub unsafe extern "C" fn shadybank_credit(client_handle: Option<&mut shadybank::Client>, magstripe: *const c_char, amount: f64) -> i32 {
     let Some(client) = client_handle else {
         return -1;
     };
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn shadybank_credit(client_handle: Option<&mut shadybank::
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shadybank_authorize_stripe(client_handle: Option<&mut shadybank::Client>, magstripe: *const c_char, amount: i32) -> *mut c_char {
+pub unsafe extern "C" fn shadybank_authorize_stripe(client_handle: Option<&mut shadybank::Client>, magstripe: *const c_char, amount: f64) -> *mut c_char {
     let Some(client) = client_handle else {
         return ptr::null_mut();
     };
@@ -108,7 +108,7 @@ pub unsafe extern "C" fn shadybank_authorize_stripe(client_handle: Option<&mut s
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shadybank_authorize_pan_shotp(client_handle: Option<&mut shadybank::Client>, pan: *const c_char, shotp: *const c_char, amount: i32) -> *mut c_char {
+pub unsafe extern "C" fn shadybank_authorize_pan_shotp(client_handle: Option<&mut shadybank::Client>, pan: *const c_char, shotp: *const c_char, amount: f64) -> *mut c_char {
     let Some(client) = client_handle else {
         return ptr::null_mut();
     };
@@ -160,7 +160,7 @@ pub unsafe extern "C" fn shadybank_void(client_handle: Option<&mut shadybank::Cl
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn shadybank_capture(client_handle: Option<&mut shadybank::Client>, amount: i32, auth_code: *const c_char) -> i32 {
+pub unsafe extern "C" fn shadybank_capture(client_handle: Option<&mut shadybank::Client>, amount: f64, auth_code: *const c_char) -> i32 {
     let Some(client) = client_handle else {
         return -1;
     };
@@ -178,6 +178,11 @@ pub unsafe extern "C" fn shadybank_capture(client_handle: Option<&mut shadybank:
     } else {
         0
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn shadybank_free_auth_code(auth_code: *mut c_char) -> () {
+    let _c_string = CString::from_raw(auth_code);
 }
 
 #[cfg(test)]
